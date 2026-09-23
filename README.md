@@ -4,7 +4,7 @@ Playable four-string bass studio: fretboard, scales, grooves, and a Web Audio am
 
 **Product vision (channel):** upload a song → estimated bass tabs. V1 ships an honest **jobs API stub** (see `API_CONTRACT.md`); real DSP is owned by **440Hz**. This repo also has the Grok Build **bass studio** recovered from the LOWEND project.
 
-Live link: _TBD_
+Live link: https://cedanosergio11.github.io/lowend/ (GitHub Pages — bass studio UI)
 
 ## Stack
 
@@ -37,6 +37,12 @@ curl -sS http://127.0.0.1:8080/api/jobs/<jobId>/tab.txt
 ```
 
 **Real vs stubbed:** WAV decode + band-limit onset/pitch stub is real enough to exercise the shape; mp3/m4a/flac skip decode and may return labeled placeholder notes. Full DSP is owned by **440Hz**.
+
+## GitHub Pages vs Jobs API
+
+**Pages** (`https://cedanosergio11.github.io/lowend/`) is a **static SPA** of the playable bass studio. It does **not** run `POST /api/jobs` (no Node server on Pages).
+
+Upload → estimated tabs needs `npm run dev` (or any server deploy). Contract: [`API_CONTRACT.md`](./API_CONTRACT.md).
 
 ## Source
 

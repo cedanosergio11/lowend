@@ -79,3 +79,7 @@ Plain-text ASCII download (`Content-Type: text/plain`). Same G→E layout as `re
 - Job store is **in-memory** (lost on restart).
 
 See also README § Jobs API.
+
+## Hosting note
+
+GitHub Pages serves the studio UI only. These endpoints require a Node/TanStack Start server (`npm run dev`).

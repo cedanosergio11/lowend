@@ -8,7 +8,8 @@
     "build": "node scripts/with-app-env.mjs vite build",
     "preview": "node scripts/with-app-env.mjs vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "build:pages": "GITHUB_PAGES=1 node scripts/with-app-env.mjs vite build && node scripts/pages-fallback.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
