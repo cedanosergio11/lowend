@@ -1,0 +1,75 @@
+name: Assemble Pages dist from b64
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pages-dist-b64/**'
+      - '.github/workflows/assemble-pages-dist.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: assemble-pages-dist
+  cancel-in-progress: true
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble dist and push to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 << 'PY'
+          import base64, json
+          from pathlib import Path
+
+          man = json.loads(Path('pages-dist-b64/manifest.json').read_text())
+          out = Path('/tmp/pages-out')
+          out.mkdir(parents=True, exist_ok=True)
+          (out / 'assets').mkdir(exist_ok=True)
+
+          def assemble(kind, name, meta):
+              parts = meta['parts']
+              chunks = []
+              for i in range(parts):
+                  p = Path(f'pages-dist-b64/{kind}/{name}.part{i:03d}')
+                  chunks.append(p.read_text().strip())
+              data = base64.b64decode(''.join(chunks))
+              target = out / name if kind == 'root' else out / 'assets' / name
+              target.write_bytes(data)
+              print(name, len(data), 'bytes')
+
+          for name, meta in man['assets'].items():
+              assemble('assets', name, meta)
+          for name, meta in man['root'].items():
+              assemble('root', name, meta)
+
+          (out / '.nojekyll').write_text('')
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages:gh-pages || true
+          if git show-ref --verify --quiet refs/heads/gh-pages; then
+            git checkout gh-pages
+          else
+            git checkout --orphan gh-pages
+            git rm -rf . || true
+          fi
+          find . -maxdepth 1 ! -name '.git' ! -name '.' -exec rm -rf {} +
+          cp -a /tmp/pages-out/. .
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "deploy(pages): assembled SPA from pages-dist-b64"
+            git push origin gh-pages
+          fi
