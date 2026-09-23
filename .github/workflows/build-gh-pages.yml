@@ -35,6 +35,11 @@ jobs:
             grep -R 'basepath:' dist/client/assets/*.js | head -20 || true
             exit 1
           fi
+          # Client path smoke: Web Audio / analyzeDecoded should be in the bundle
+          if ! grep -R -E 'AudioContext|analyzeDecoded|decodeAudioData' dist/client/assets/*.js >/dev/null; then
+            echo "FATAL: client analyze path markers missing from bundle"
+            exit 1
+          fi
           rm -rf /tmp/pages-out
           cp -a dist/client /tmp/pages-out
           ls -la /tmp/pages-out /tmp/pages-out/assets
@@ -45,14 +50,19 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Build may dirty routeTree.gen.ts — discard before switching branches
+          git reset --hard HEAD
+          git clean -fd
           git fetch origin gh-pages:gh-pages || true
           if git show-ref --verify --quiet refs/heads/gh-pages; then
-            git checkout gh-pages
+            git checkout -f gh-pages
           else
             git checkout --orphan gh-pages
           fi
           find . -maxdepth 1 ! -name '.git' ! -name '.' -exec rm -rf {} +
           cp -a /tmp/pages-out/. .
+          # Ensure .nojekyll
+          touch .nojekyll
           git add -A
           if git diff --cached --quiet; then
             echo "No changes"
