@@ -31,7 +31,7 @@ Smaller files (theory, grooves, store, mark, scale-rail, button, routes, styles)
 - Screenshots under `/workspace/screenshots/*`
 - Brand OG assets from the SubAgent pass (favicon/og may be scaffold defaults)
 - Published `*.grok.me` slug (none found for LOWEND; `lowend.grok.me` 404)
-- Song-upload → tab estimation pipeline (product vision only; **440Hz** owns that story)
+- Full song-upload → tab estimation DSP (V1 **jobs API stub** is in-repo; real analysis owned by **440Hz**)
 - Full `node_modules` / lockfile from the Build environment
 
 ## Not invented

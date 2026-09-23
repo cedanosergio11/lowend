@@ -2,7 +2,7 @@
 
 Playable four-string bass studio: fretboard, scales, grooves, and a Web Audio amp.
 
-**Product vision (channel):** upload a song → estimated bass tabs. That analysis story is owned by **440Hz** and is not implemented in this export. This repo is the Grok Build **bass studio** recovered from the LOWEND project.
+**Product vision (channel):** upload a song → estimated bass tabs. V1 ships an honest **jobs API stub** (see `API_CONTRACT.md`); real DSP is owned by **440Hz**. This repo also has the Grok Build **bass studio** recovered from the LOWEND project.
 
 Live link: _TBD_
 
@@ -20,6 +20,23 @@ Live link: _TBD_
 npm install
 npm run dev
 ```
+
+## Jobs API (V1 stub)
+
+Upload audio → estimated bass tab JSON + ASCII. Contract: [`API_CONTRACT.md`](./API_CONTRACT.md).
+
+```bash
+# create job
+curl -sS -F file=@song.wav http://127.0.0.1:8080/api/jobs
+
+# poll
+curl -sS http://127.0.0.1:8080/api/jobs/<jobId>
+
+# ASCII download
+curl -sS http://127.0.0.1:8080/api/jobs/<jobId>/tab.txt
+```
+
+**Real vs stubbed:** WAV decode + band-limit onset/pitch stub is real enough to exercise the shape; mp3/m4a/flac skip decode and may return labeled placeholder notes. Full DSP is owned by **440Hz**.
 
 ## Source
 
