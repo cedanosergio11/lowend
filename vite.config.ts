@@ -21,9 +21,14 @@ export default defineConfig(({ command, isPreview }) => ({
   resolve: { tsconfigPaths: true },
   plugins: [
     tailwindcss(),
+    // Start strips leading "/" from Vite base ("/lowend/" → "lowend") then
+    // hydrateStart overwrites createRouter basepath — pin explicitly.
     tanstackStart(
       isGitHubPages
         ? {
+            router: {
+              basepath: pagesBase().replace(/\/$/, "") || "/",
+            },
             spa: {
               enabled: true,
               prerender: {
