@@ -1,0 +1,62 @@
+name: Build and push gh-pages SPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-gh-pages
+  cancel-in-progress: true
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci || npm install
+      - name: Build Pages SPA
+        run: npm run build:pages
+        env:
+          GITHUB_PAGES: "1"
+          BASE_PATH: "/lowend/"
+      - name: Stage dist and verify basepath
+        run: |
+          set -euo pipefail
+          test -f dist/client/index.html
+          if ! grep -R -F 'basepath:`/lowend`' dist/client/assets/*.js; then
+            echo "FATAL: missing basepath:/lowend in built JS"
+            grep -R 'basepath:' dist/client/assets/*.js | head -20 || true
+            exit 1
+          fi
+          rm -rf /tmp/pages-out
+          cp -a dist/client /tmp/pages-out
+          ls -la /tmp/pages-out /tmp/pages-out/assets
+      - name: Push to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages:gh-pages || true
+          if git show-ref --verify --quiet refs/heads/gh-pages; then
+            git checkout gh-pages
+          else
+            git checkout --orphan gh-pages
+          fi
+          find . -maxdepth 1 ! -name '.git' ! -name '.' -exec rm -rf {} +
+          cp -a /tmp/pages-out/. .
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "deploy(pages): SPA with basepath /lowend from Actions build"
+            git push origin gh-pages
+          fi
