@@ -1,8 +1,9 @@
 name: Deploy GitHub Pages
 
+# Live site is served from the gh-pages branch (build-gh-pages.yml).
+# Keep this workflow manual-only so push-to-main does not leave a broken
+# Actions red-X when GitHub Pages is configured for branch deploy.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -24,13 +25,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install
         run: npm install
       - name: Build Pages
         run: npm run build:pages
         env:
           GITHUB_PAGES: "1"
+          BASE_PATH: "/lowend/"
       - name: Verify dist/client/index.html
         run: |
           if [ ! -f dist/client/index.html ]; then
