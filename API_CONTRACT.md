@@ -11,7 +11,7 @@ Locked field names — do not rename.
 | Frets | Decimal digits |
 | Time | Left → right |
 
-Analysis story (honest): band-limit **40–350 Hz** → pitch/onset → fret map (prefer frets **0–12** on ties). No Demucs. No Apple Music. Real DSP later owned by **440Hz**.
+Analysis story (honest): results are **Estimated**, not an official tab. The mixed audio is band-limited to **40–350 Hz**, then energy onset and autocorrelation pitch are mapped to EADG (prefer frets **0–12** on ties). No stem separation and no Apple Music audio fetching.
 
 ## `POST /api/jobs`
 
@@ -72,10 +72,10 @@ When `status` is `"done"`, `result` is:
 
 Plain-text ASCII download (`Content-Type: text/plain`). Same G→E layout as `result.ascii`.
 
-## V1 stub honesty
+## V1 server analysis limits
 
-- **WAV**: decoded in Node (PCM); energy onset + autocorrelation pitch in the bass band.
-- **mp3 / m4a / flac**: accepted + duration stubbed from size; notes may be placeholders with caveat **`stub notes — not real pitch detection yet`**.
+- **WAV**: decoded in Node (PCM), then analyzed from the mixed audio with a 40–350 Hz band-limit, energy onset, autocorrelation pitch, and EADG fret mapping. Results are labeled **Estimated** and are not an official tab.
+- **mp3 / m4a / flac**: accepted, but the server does not decode these formats in V1. Duration is estimated from file size, and returned notes are illustrative only because no pitch estimate was computed.
 - Job store is **in-memory** (lost on restart).
 
 See also README § Jobs API.

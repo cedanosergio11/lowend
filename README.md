@@ -2,7 +2,7 @@
 
 Playable four-string bass studio: fretboard, scales, grooves, and a Web Audio amp.
 
-**Product vision (channel):** upload a song → estimated bass tabs. V1 ships an honest **jobs API stub** (see `API_CONTRACT.md`); real DSP is owned by **440Hz**. This repo also has the Grok Build **bass studio** recovered from the LOWEND project.
+**Product vision (channel):** upload a song → estimated bass tabs. V1 ships an honest server jobs API (see `API_CONTRACT.md`). This repo also has the Grok Build **bass studio** recovered from the LOWEND project.
 
 Live link: https://cedanosergio11.github.io/lowend/ (GitHub Pages — bass studio UI)
 
@@ -21,7 +21,7 @@ npm install
 npm run dev
 ```
 
-## Jobs API (V1 stub)
+## Jobs API (V1 server analysis)
 
 Upload audio → estimated bass tab JSON + ASCII. Contract: [`API_CONTRACT.md`](./API_CONTRACT.md).
 
@@ -36,7 +36,7 @@ curl -sS http://127.0.0.1:8080/api/jobs/<jobId>
 curl -sS http://127.0.0.1:8080/api/jobs/<jobId>/tab.txt
 ```
 
-**Real vs stubbed:** WAV decode + band-limit onset/pitch stub is real enough to exercise the shape; mp3/m4a/flac skip decode and may return labeled placeholder notes. Full DSP is owned by **440Hz**.
+**Server analysis limits:** PCM WAV is decoded in Node and analyzed from the mixed audio with a 40–350 Hz band-limit, energy onset, autocorrelation pitch, and EADG fret mapping. Results are **Estimated**, not official tabs, and no stem separation is performed. mp3/m4a/flac are accepted, but the Node path cannot decode them in V1: duration is estimated from file size and returned notes are illustrative only, not pitch detections.
 
 ## GitHub Pages vs Jobs API
 

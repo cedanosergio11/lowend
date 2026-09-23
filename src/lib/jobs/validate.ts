@@ -82,7 +82,7 @@ export async function validateUpload(form: FormData): Promise<ValidateResult> {
     const ext = extOf(fileName);
     durationMsHint = estimateDurationFromSize(bytes.byteLength, ext);
     if (durationMsHint != null && durationMsHint > MAX_DURATION_MS * 1.15) {
-      // Soft stub check with 15% slack on bitrate guess
+      // Soft duration check with 15% slack on the bitrate estimate
       return { ok: false, status: 413, message: "Audio longer than 8 minutes (estimated)" };
     }
   }

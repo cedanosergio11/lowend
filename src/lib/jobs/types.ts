@@ -47,7 +47,7 @@ export type Job = {
   /** Original upload metadata (not exposed in GET). */
   fileName?: string;
   mimeType?: string;
-  /** Raw bytes kept briefly for analysis (in-memory stub). */
+  /** Raw bytes kept briefly for analysis (in-memory job store). */
   bytes?: Uint8Array;
 };
 
