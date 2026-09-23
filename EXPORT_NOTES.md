@@ -37,3 +37,7 @@ Smaller files (theory, grooves, store, mark, scale-rail, button, routes, styles)
 ## Not invented
 
 No Demucs, no stem separation, no ML tab estimator. Audio is Web Audio synthesis as in the Grok studio thread.
+
+## Scaffold completeness (box)
+
+Copied remaining Grok template auth/db/PWA scripts from `process-flow-sim` so `vite.config.ts` and `auth/client.ts` resolve: `sign-out-plan`, `grok-pwa-*`, `migration-plan`, `write-atomic`, `db.ts`, auth server modules (`server`, `popup`, `verify`, `isolation`, `gate-*`, `pglite-dialect`). Favicon/OG still scaffold defaults.
