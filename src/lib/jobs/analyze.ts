@@ -109,12 +109,12 @@ export function decodeWav(bytes: Uint8Array): DecodedAudio | null {
   };
 }
 
-/** Rough duration estimate for non-WAV from byte size (stub). */
+/** Approximate duration for formats the server cannot decode, based on file size. */
 export function estimateDurationFromSize(
   byteLength: number,
   ext: string,
 ): number | null {
-  // Rough bitrate assumptions — stub only
+  // Rough bitrate assumptions for non-decoded formats.
   const bitrate =
     ext === ".flac" ? 900_000 : ext === ".wav" ? 1_411_200 : 160_000;
   if (bitrate <= 0 || byteLength <= 0) return null;
@@ -317,9 +317,9 @@ export function analyzeDecoded(decoded: DecodedAudio): JobResult {
   const merged = mergeNearbyNotes(notes);
 
   const caveats = [
-    "V1 stub analysis: band-limit 40–350 Hz → energy onset → autocorrelation pitch → EADG fret map (prefer frets 0–12 on ties).",
-    "Not full stem separation; no Demucs. Real DSP owned by 440Hz later.",
-    "Pitch/onset is a minimal honest placeholder — treat tabs as Estimated only.",
+    "Estimated — analyzed from the mixed audio; this is not an official tab.",
+    "Mixed audio is band-limited to 40–350 Hz, then energy onset and autocorrelation pitch are mapped to EADG (prefer frets 0–12 on ties).",
+    "No stem separation; busy mixes, slap ghosts, and chords can lower confidence.",
   ];
 
   if (merged.length === 0) {
@@ -340,8 +340,8 @@ export function analyzeDecoded(decoded: DecodedAudio): JobResult {
   };
 }
 
-/** Placeholder notes when decode is unavailable — clearly labeled as stub. */
-function stubPlaceholderResult(durationMs: number, reason: string): JobResult {
+/** Preserve the result shape when the server cannot decode an upload. */
+function unavailableDecodeResult(durationMs: number, reason: string): JobResult {
   const sampleRate = 44100;
   const dur = Math.max(1000, Math.min(durationMs || 4000, MAX_DURATION_MS));
   // A few shaped notes on E/A so JSON shape is real; not claimed as detected pitch.
@@ -363,9 +363,9 @@ function stubPlaceholderResult(durationMs: number, reason: string): JobResult {
   }));
 
   const caveats = [
-    "stub notes — not real pitch detection yet",
-    `Decode unavailable (${reason}); placeholder notes only to exercise the JSON contract.`,
-    "V1 stub: intended pipeline is band-limit 40–350 Hz → pitch/onset → fret map. Full DSP owned by 440Hz.",
+    "Estimated — this is not an official tab.",
+    `No pitch estimate was computed because the server could not decode the upload (${reason}); notes are illustrative only.`,
+    "When decoded, the server analyzes mixed audio with a 40–350 Hz band-limit, energy onset, autocorrelation pitch, and an EADG fret map (prefer frets 0–12 on ties).",
   ];
 
   return {
@@ -395,7 +395,7 @@ export function analyzeUpload(input: AnalyzeInput): JobResult {
   if (isWav) {
     const decoded = decodeWav(input.bytes);
     if (!decoded) {
-      return stubPlaceholderResult(4000, "corrupt or unsupported WAV");
+      return unavailableDecodeResult(4000, "corrupt or unsupported WAV");
     }
     if (decoded.durationMs > MAX_DURATION_MS) {
       // Caller should 413 before this; still guard.
@@ -407,7 +407,7 @@ export function analyzeUpload(input: AnalyzeInput): JobResult {
   const ext =
     ([".mp3", ".m4a", ".flac", ".wav"] as const).find((e) => lower.endsWith(e)) ?? ".mp3";
   const est = estimateDurationFromSize(input.bytes.byteLength, ext) ?? 4000;
-  return stubPlaceholderResult(est, `${ext} decode not implemented in V1 Node stub`);
+  return unavailableDecodeResult(est, `${ext} decoding is unavailable on this server`);
 }
 
 export { OPEN_HZ, BAND_LO, BAND_HI };
