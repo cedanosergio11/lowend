@@ -15,6 +15,7 @@ type Voice = {
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
+let clickBus: GainNode | null = null;
 let shaper: WaveShaperNode | null = null;
 let ampGain: GainNode | null = null;
 let toneFilter: BiquadFilterNode | null = null;
@@ -73,13 +74,29 @@ function ensureGraph(): AudioContext | null {
   g.connect(m);
   m.connect(audio.destination);
 
+  // Dry click bus (440Hz): metronome/practice click bypasses amp/master.
+  const click = audio.createGain();
+  click.gain.value = 1;
+  click.connect(audio.destination);
+
   ctx = audio;
   toneFilter = t;
   shaper = s;
   ampGain = g;
   master = m;
+  clickBus = click;
   applyAmp();
   return audio;
+}
+
+
+function ensureClickBus(audio: AudioContext): GainNode {
+  if (clickBus) return clickBus;
+  const click = audio.createGain();
+  click.gain.value = 1;
+  click.connect(audio.destination);
+  clickBus = click;
+  return click;
 }
 
 function applyAmp() {
@@ -123,6 +140,7 @@ export function resumeIfNeeded(): void {
   if (ctx && ctx.state === "suspended") {
     void ctx.resume();
   }
+
 }
 
 export function setAmp(next: Partial<Amp>) {
@@ -224,8 +242,9 @@ export function pluck(
 
 export function click(level = 0.2) {
   const audio = ensureGraph();
-  if (!audio || !master) return;
+  if (!audio) return;
   resumeIfNeeded();
+  const bus = ensureClickBus(audio);
   const now = audio.currentTime;
   const osc = audio.createOscillator();
   osc.type = "square";
@@ -235,7 +254,43 @@ export function click(level = 0.2) {
   g.gain.exponentialRampToValueAtTime(level, now + 0.002);
   g.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
   osc.connect(g);
-  g.connect(master);
+  g.connect(bus);
   osc.start(now);
   osc.stop(now + 0.05);
+}
+
+/** Schedule a dry click at absolute AudioContext time (for look-ahead metronome). */
+export function scheduleClick(
+  when: number,
+  opts?: { accent?: boolean; level?: number },
+) {
+  const audio = ensureGraph();
+  if (!audio) return;
+  const bus = ensureClickBus(audio);
+  const accent = Boolean(opts?.accent);
+  const level = opts?.level ?? (accent ? 0.28 : 0.16);
+  const freq = accent ? 1800 : 1200;
+  const osc = audio.createOscillator();
+  osc.type = "square";
+  osc.frequency.setValueAtTime(freq, when);
+  const g = audio.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(level, when + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + (accent ? 0.055 : 0.04));
+  osc.connect(g);
+  g.connect(bus);
+  osc.start(when);
+  osc.stop(when + 0.07);
+}
+
+/** Base + output latency in ms when the context is up; null if not yet plugged in. */
+export function latencyMs(): number | null {
+  if (!ctx) return null;
+  const base = typeof ctx.baseLatency === "number" ? ctx.baseLatency : 0;
+  const out =
+    typeof (ctx as AudioContext & { outputLatency?: number }).outputLatency ===
+    "number"
+      ? (ctx as AudioContext & { outputLatency: number }).outputLatency
+      : 0;
+  return Math.round((base + out) * 1000);
 }
