@@ -7,8 +7,10 @@ import {
   onMetronomeStopped,
   setMetronomeBeatListener,
   setMetronomeBpm,
+  setMetronomeSound,
   startMetronome,
   stopMetronome,
+  type MetroSound,
   type TimeSig,
 } from "@/lib/bass/metronome";
 import { useBassStore } from "@/lib/bass/store";
@@ -21,6 +23,7 @@ export function MetronomePanel() {
   const goLive = useBassStore((s) => s.goLive);
   const [bpm, setBpm] = useState(100);
   const [sig, setSig] = useState<TimeSig>("4/4");
+  const [sound, setSound] = useState<MetroSound>("click");
   const [running, setRunning] = useState(false);
   const [beat, setBeat] = useState(-1);
   const [latency, setLatency] = useState<number | null>(null);
@@ -51,7 +54,7 @@ export function MetronomePanel() {
       return;
     }
     if (!live) goLive();
-    const ok = await startMetronome({ bpm, timeSig: sig });
+    const ok = await startMetronome({ bpm, timeSig: sig, sound });
     if (!ok) return;
     setRunning(true);
     setLatency(getMetronomeLatencyMs());
@@ -66,7 +69,15 @@ export function MetronomePanel() {
   function onSig(next: TimeSig) {
     setSig(next);
     if (running) {
-      void startMetronome({ bpm, timeSig: next });
+      void startMetronome({ bpm, timeSig: next, sound });
+    }
+  }
+
+  function onSound(next: MetroSound) {
+    setSound(next);
+    setMetronomeSound(next);
+    if (running) {
+      void startMetronome({ bpm, timeSig: sig, sound: next });
     }
   }
 
@@ -122,6 +133,29 @@ export function MetronomePanel() {
         ))}
       </div>
 
+      <div className="mb-4">
+        <p className="mb-2 font-mono text-xs tracking-wide text-muted uppercase">
+          Sound
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ["click", "Click"],
+              ["kit", "Kit"],
+            ] as const
+          ).map(([id, label]) => (
+            <Button
+              key={id}
+              variant={sound === id ? "primary" : "outline"}
+              size="sm"
+              onClick={() => onSound(id)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
       <label className="block">
         <span className="mb-1 flex items-baseline justify-between gap-2">
           <span className="font-mono text-xs tracking-wide text-muted uppercase">
@@ -159,9 +193,12 @@ export function MetronomePanel() {
       </div>
 
       <p className="mt-4 font-mono text-xs text-muted">
-        Click only · accent on 1 · Web Audio look-ahead (~25 ms)
+        {sound === "kit"
+          ? "Synth kit · kick/snare/hat · dry bus"
+          : "Click · accent on 1 · dry bus"}
+        {" · look-ahead ~25 ms"}
         {latency !== null ? ` · output ~${latency} ms` : ""}
-        . Kit samples later.
+        . No sample packs.
       </p>
     </section>
   );

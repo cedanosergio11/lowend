@@ -140,7 +140,6 @@ export function resumeIfNeeded(): void {
   if (ctx && ctx.state === "suspended") {
     void ctx.resume();
   }
-
 }
 
 export function setAmp(next: Partial<Amp>) {
@@ -293,4 +292,88 @@ export function latencyMs(): number | null {
       ? (ctx as AudioContext & { outputLatency: number }).outputLatency
       : 0;
   return Math.round((base + out) * 1000);
+}
+
+/** Synth kit one-shots on dry clickBus (440Hz V1.1 — no sample packs). */
+export function scheduleKick(when: number) {
+  const audio = ensureGraph();
+  if (!audio) return;
+  const bus = ensureClickBus(audio);
+  const osc = audio.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(80, when);
+  osc.frequency.exponentialRampToValueAtTime(40, when + 0.12);
+  const g = audio.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(0.55, when + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.22);
+  osc.connect(g);
+  g.connect(bus);
+  osc.start(when);
+  osc.stop(when + 0.25);
+}
+
+export function scheduleSnare(when: number) {
+  const audio = ensureGraph();
+  if (!audio) return;
+  const bus = ensureClickBus(audio);
+  // Body tone
+  const osc = audio.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(180, when);
+  const og = audio.createGain();
+  og.gain.setValueAtTime(0.0001, when);
+  og.gain.exponentialRampToValueAtTime(0.22, when + 0.003);
+  og.gain.exponentialRampToValueAtTime(0.0001, when + 0.08);
+  osc.connect(og);
+  og.connect(bus);
+  osc.start(when);
+  osc.stop(when + 0.1);
+  // Noise burst
+  const dur = 0.12;
+  const frames = Math.max(1, Math.floor(audio.sampleRate * dur));
+  const buf = audio.createBuffer(1, frames, audio.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
+  const src = audio.createBufferSource();
+  src.buffer = buf;
+  const bp = audio.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.setValueAtTime(1800, when);
+  bp.Q.value = 0.8;
+  const ng = audio.createGain();
+  ng.gain.setValueAtTime(0.0001, when);
+  ng.gain.exponentialRampToValueAtTime(0.35, when + 0.002);
+  ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.1);
+  src.connect(bp);
+  bp.connect(ng);
+  ng.connect(bus);
+  src.start(when);
+  src.stop(when + dur);
+}
+
+export function scheduleHat(when: number) {
+  const audio = ensureGraph();
+  if (!audio) return;
+  const bus = ensureClickBus(audio);
+  const dur = 0.05;
+  const frames = Math.max(1, Math.floor(audio.sampleRate * dur));
+  const buf = audio.createBuffer(1, frames, audio.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
+  const src = audio.createBufferSource();
+  src.buffer = buf;
+  const hp = audio.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.setValueAtTime(7000, when);
+  hp.Q.value = 0.7;
+  const g = audio.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(0.18, when + 0.001);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.04);
+  src.connect(hp);
+  hp.connect(g);
+  g.connect(bus);
+  src.start(when);
+  src.stop(when + dur);
 }
