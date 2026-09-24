@@ -5,11 +5,13 @@ import { cn } from "@/lib/utils";
 import {
   getMetronomeLatencyMs,
   onMetronomeStopped,
+  setHatRate,
   setMetronomeBeatListener,
   setMetronomeBpm,
   setMetronomeSound,
   startMetronome,
   stopMetronome,
+  type HatRate,
   type MetroSound,
   type TimeSig,
 } from "@/lib/bass/metronome";
@@ -24,6 +26,7 @@ export function MetronomePanel() {
   const [bpm, setBpm] = useState(100);
   const [sig, setSig] = useState<TimeSig>("4/4");
   const [sound, setSound] = useState<MetroSound>("click");
+  const [hats, setHats] = useState<HatRate>("8ths");
   const [running, setRunning] = useState(false);
   const [beat, setBeat] = useState(-1);
   const [latency, setLatency] = useState<number | null>(null);
@@ -54,7 +57,12 @@ export function MetronomePanel() {
       return;
     }
     if (!live) goLive();
-    const ok = await startMetronome({ bpm, timeSig: sig, sound });
+    const ok = await startMetronome({
+      bpm,
+      timeSig: sig,
+      sound,
+      hatRate: hats,
+    });
     if (!ok) return;
     setRunning(true);
     setLatency(getMetronomeLatencyMs());
@@ -69,7 +77,7 @@ export function MetronomePanel() {
   function onSig(next: TimeSig) {
     setSig(next);
     if (running) {
-      void startMetronome({ bpm, timeSig: next, sound });
+      void startMetronome({ bpm, timeSig: next, sound, hatRate: hats });
     }
   }
 
@@ -77,7 +85,15 @@ export function MetronomePanel() {
     setSound(next);
     setMetronomeSound(next);
     if (running) {
-      void startMetronome({ bpm, timeSig: sig, sound: next });
+      void startMetronome({ bpm, timeSig: sig, sound: next, hatRate: hats });
+    }
+  }
+
+  function onHats(next: HatRate) {
+    setHats(next);
+    setHatRate(next);
+    if (running) {
+      void startMetronome({ bpm, timeSig: sig, sound, hatRate: next });
     }
   }
 
@@ -156,6 +172,31 @@ export function MetronomePanel() {
         </div>
       </div>
 
+      {sound === "kit" ? (
+        <div className="mb-4">
+          <p className="mb-2 font-mono text-xs tracking-wide text-muted uppercase">
+            Hats
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["8ths", "8ths"],
+                ["16ths", "16ths"],
+              ] as const
+            ).map(([id, label]) => (
+              <Button
+                key={id}
+                variant={hats === id ? "primary" : "outline"}
+                size="sm"
+                onClick={() => onHats(id)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <label className="block">
         <span className="mb-1 flex items-baseline justify-between gap-2">
           <span className="font-mono text-xs tracking-wide text-muted uppercase">
@@ -194,7 +235,7 @@ export function MetronomePanel() {
 
       <p className="mt-4 font-mono text-xs text-muted">
         {sound === "kit"
-          ? "Synth kit · kick/snare/hat · dry bus"
+          ? `Synth kit · hats ${hats} · offbeat −3 dB · dry bus`
           : "Click · accent on 1 · dry bus"}
         {" · look-ahead ~25 ms"}
         {latency !== null ? ` · output ~${latency} ms` : ""}

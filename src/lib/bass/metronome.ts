@@ -1,5 +1,5 @@
 /**
- * Metronome + kit (440Hz V1 / V1.1).
+ * Metronome + kit (440Hz V1 / V1.1 / hat rate).
  * Look-ahead scheduler (~25 ms poll, ~100 ms ahead) — not setInterval on the beat.
  * Kit: synth one-shots on dry clickBus (no sample packs).
  */
@@ -16,9 +16,13 @@ import {
 
 export type TimeSig = "4/4" | "3/4";
 export type MetroSound = "click" | "kit";
+export type HatRate = "8ths" | "16ths";
 
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD = 0.1;
+/** On-beat hat peak; offbeat ≈ −3 dB (440Hz). */
+const HAT_ON = 0.18;
+const HAT_OFF = HAT_ON * Math.pow(10, -3 / 20);
 
 let timerId: ReturnType<typeof setTimeout> | null = null;
 let nextNoteTime = 0;
@@ -26,6 +30,7 @@ let beatInBar = 0;
 let bpm = 100;
 let beatsPerBar = 4;
 let sound: MetroSound = "click";
+let hatRate: HatRate = "8ths";
 let running = false;
 let onBeat: ((beat: number) => void) | null = null;
 const stopListeners = new Set<() => void>();
@@ -38,16 +43,26 @@ function secondsPerBeat(): number {
   return 60 / Math.max(40, Math.min(240, bpm));
 }
 
-/** 4/4: kick 1+3, snare 2+4, hat every beat. 3/4: kick 1, hat 2+3. */
+function scheduleHatsInBeat(beatStart: number, beatDur: number) {
+  const div = hatRate === "16ths" ? 4 : 2;
+  const step = beatDur / div;
+  for (let i = 0; i < div; i++) {
+    const t = beatStart + i * step;
+    const level = i === 0 ? HAT_ON : HAT_OFF;
+    scheduleHat(t, { level });
+  }
+}
+
+/** 4/4: kick 1+3, snare 2+4. 3/4: kick 1. Hats at 8ths/16ths across the beat. */
 function scheduleKitBeat(beat: number, time: number) {
+  const beatDur = secondsPerBeat();
   if (beatsPerBar === 4) {
     if (beat === 0 || beat === 2) scheduleKick(time);
     if (beat === 1 || beat === 3) scheduleSnare(time);
-    scheduleHat(time);
-  } else {
-    if (beat === 0) scheduleKick(time);
-    if (beat === 1 || beat === 2) scheduleHat(time);
+  } else if (beat === 0) {
+    scheduleKick(time);
   }
+  scheduleHatsInBeat(time, beatDur);
 }
 
 function scheduleNote(beat: number, time: number) {
@@ -87,6 +102,10 @@ export function getMetronomeSound(): MetroSound {
   return sound;
 }
 
+export function getHatRate(): HatRate {
+  return hatRate;
+}
+
 export function setMetronomeBpm(next: number) {
   bpm = Math.max(40, Math.min(240, Math.round(next)));
 }
@@ -100,6 +119,10 @@ export function setMetronomeSound(next: MetroSound) {
   sound = next;
 }
 
+export function setHatRate(next: HatRate) {
+  hatRate = next;
+}
+
 export function setMetronomeBeatListener(fn: ((beat: number) => void) | null) {
   onBeat = fn;
 }
@@ -108,10 +131,12 @@ export async function startMetronome(opts: {
   bpm: number;
   timeSig: TimeSig;
   sound?: MetroSound;
+  hatRate?: HatRate;
 }): Promise<boolean> {
   setMetronomeBpm(opts.bpm);
   setMetronomeTimeSig(opts.timeSig);
   if (opts.sound) setMetronomeSound(opts.sound);
+  if (opts.hatRate) setHatRate(opts.hatRate);
   const ok = await plugIn();
   if (!ok) return false;
   resumeIfNeeded();
