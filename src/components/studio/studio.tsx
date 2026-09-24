@@ -5,6 +5,7 @@ import { AmpRack } from "@/components/studio/amp-rack";
 import { ScaleRail } from "@/components/studio/scale-rail";
 import { GrooveDeck } from "@/components/studio/groove-deck";
 import { SongToTabs } from "@/components/studio/song-to-tabs";
+import { MetronomePanel } from "@/components/studio/metronome-panel";
 import { Button } from "@/components/ui/button";
 import { click, currentTime, plugIn, pluck, resumeIfNeeded } from "@/lib/bass/audio";
 import { grooveById, totalSteps } from "@/lib/bass/grooves";
@@ -90,7 +91,7 @@ export function Studio() {
     const steps = totalSteps(groove);
     const sixteenth = 60 / groove.bpm / 4;
     const start = currentTime() + 0.06;
-    loopRef.current = { start, lastStep: -1, lastBeat: -1 };
+    loopRef.current = { start, lastStep: -1, lastBeat: -1, lastPulse: false };
 
     let raf = 0;
     const fired = new Set<string>();
@@ -211,6 +212,7 @@ export function Studio() {
         <div className="flex flex-col gap-4">
           <AmpRack />
           <ScaleRail />
+          <MetronomePanel />
         </div>
         <GrooveDeck />
       </div>
