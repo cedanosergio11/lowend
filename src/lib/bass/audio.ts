@@ -352,10 +352,11 @@ export function scheduleSnare(when: number) {
   src.stop(when + dur);
 }
 
-export function scheduleHat(when: number) {
+export function scheduleHat(when: number, opts?: { level?: number }) {
   const audio = ensureGraph();
   if (!audio) return;
   const bus = ensureClickBus(audio);
+  const peak = opts?.level ?? 0.18;
   const dur = 0.05;
   const frames = Math.max(1, Math.floor(audio.sampleRate * dur));
   const buf = audio.createBuffer(1, frames, audio.sampleRate);
@@ -369,7 +370,7 @@ export function scheduleHat(when: number) {
   hp.Q.value = 0.7;
   const g = audio.createGain();
   g.gain.setValueAtTime(0.0001, when);
-  g.gain.exponentialRampToValueAtTime(0.18, when + 0.001);
+  g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0001), when + 0.001);
   g.gain.exponentialRampToValueAtTime(0.0001, when + 0.04);
   src.connect(hp);
   hp.connect(g);
