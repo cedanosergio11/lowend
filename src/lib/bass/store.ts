@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { isRunning, plugIn, pluck, setAmp, setTuning, silenceAll } from "./audio";
+import { stopMetronome } from "./metronome";
 import { GROOVES, type Groove } from "./grooves";
 import type { ScaleId, TuningId } from "./theory";
 
@@ -118,6 +119,7 @@ export const useBassStore = create<BassState>((set, get) => ({
   setBeatOn: (v) => set({ beatOn: v }),
   stopAll: () => {
     silenceAll();
+    stopMetronome();
     set({ playing: false, playhead: -1, buzzing: null, beatOn: false });
   },
 }));
