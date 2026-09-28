@@ -95,8 +95,8 @@ export function ScaleRail() {
         ))}
       </div>
       <p className="mt-2 font-mono text-[0.65rem] text-muted">
-        Movable Do = Root. Needs a scale — Major for full Do–Ti. Scale Off
-        still paints Major under Solfège/Both.
+        Movable Do = Root. Solfège/Both always show Do–Ti (incl. Re + La).
+        Highlight follows Scale; Me/Fi/Te appear when that scale includes them.
       </p>
     </section>
   );
