@@ -271,6 +271,26 @@ export function Fretboard() {
                     className="fret-cell relative z-10 flex h-11 items-center justify-center border-l border-fret/30"
                     onPointerDown={(e) => pressCell(e, stringIndex, f)}
                   >
+                    {stringIndex === 1 && INLAY_FRETS.has(f) ? (
+                      <span
+                        className={
+                          "pointer-events-none absolute left-1/2 top-full z-[1] flex -translate-x-1/2 -translate-y-1/2 " +
+                          (DOUBLE_INLAY.has(f) ? "gap-1.5" : "")
+                        }
+                        aria-hidden
+                      >
+                        <span
+                          className="size-2.5 rounded-full bg-inlay/75"
+                          style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.35), 0 0 0 1px rgba(0,0,0,0.25)" }}
+                        />
+                        {DOUBLE_INLAY.has(f) ? (
+                          <span
+                            className="size-2.5 rounded-full bg-inlay/75"
+                            style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.35), 0 0 0 1px rgba(0,0,0,0.25)" }}
+                          />
+                        ) : null}
+                      </span>
+                    ) : null}
                     <span
                       className={
                         "fret-dot relative z-10 flex items-center justify-center rounded-full font-mono " +
