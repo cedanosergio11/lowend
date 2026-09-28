@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { isRunning, plugIn, pluck, setAmp, setTuning, silenceAll } from "./audio";
 import { stopMetronome } from "./metronome";
 import { GROOVES, type Groove } from "./grooves";
-import type { ScaleId, TuningId } from "./theory";
+import type { FretLabelMode, ScaleId, TuningId } from "./theory";
 
 export type BassState = {
   live: boolean;
@@ -11,7 +11,7 @@ export type BassState = {
   tone: number;
   drive: number;
   muted: boolean;
-  showNotes: boolean;
+  labelMode: FretLabelMode;
   showKeys: boolean;
   metronome: boolean;
   tuningId: TuningId;
@@ -28,7 +28,7 @@ export type BassState = {
   setTone: (n: number) => void;
   setDrive: (n: number) => void;
   toggleMute: () => void;
-  toggleNotes: () => void;
+  setLabelMode: (mode: FretLabelMode) => void;
   toggleKeys: () => void;
   toggleMetronome: () => void;
   setTuningId: (id: TuningId) => void;
@@ -50,7 +50,7 @@ export const useBassStore = create<BassState>((set, get) => ({
   tone: 0.62,
   drive: 0.18,
   muted: false,
-  showNotes: true,
+  labelMode: "notes",
   showKeys: false,
   metronome: false,
   tuningId: "standard",
@@ -102,7 +102,7 @@ export const useBassStore = create<BassState>((set, get) => ({
     set({ muted });
     setAmp({ muted });
   },
-  toggleNotes: () => set({ showNotes: !get().showNotes }),
+  setLabelMode: (mode) => set({ labelMode: mode }),
   toggleKeys: () => set({ showKeys: !get().showKeys }),
   toggleMetronome: () => set({ metronome: !get().metronome }),
   setTuningId: (id) => {

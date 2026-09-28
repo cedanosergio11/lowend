@@ -13,6 +13,7 @@ import {
   fretWidths,
   noteName,
   scaleDegree,
+  solfegeForDegree,
   SCALES,
 } from "@/lib/bass/theory";
 import { pluck } from "@/lib/bass/audio";
@@ -40,11 +41,25 @@ function invertKeyMap() {
 
 const KEY_AT = invertKeyMap();
 
+function fretLabelText(
+  midi: number,
+  deg: number | null,
+  labelMode: "notes" | "solfege" | "both",
+): string {
+  const note = noteName(midi).replace(/\d+$/, "");
+  const solfa = solfegeForDegree(deg);
+  if (labelMode === "notes") return note;
+  if (labelMode === "solfege") return solfa ?? "";
+  // both: note always; solfège only on lit scale frets
+  if (solfa) return `${note} ${solfa}`;
+  return note;
+}
+
 export function Fretboard() {
   const live = useBassStore((s) => s.live);
   const goLive = useBassStore((s) => s.goLive);
   const tuningId = useBassStore((s) => s.tuningId);
-  const showNotes = useBassStore((s) => s.showNotes);
+  const labelMode = useBassStore((s) => s.labelMode);
   const showKeys = useBassStore((s) => s.showKeys);
   const scaleId = useBassStore((s) => s.scaleId);
   const rootPc = useBassStore((s) => s.rootPc);
@@ -229,7 +244,13 @@ export function Fretboard() {
                       : "text-muted")
                   }
                 >
-                  {showNotes ? noteName(openMidi[stringIndex]) : showKeys ? KEY_AT[`${stringIndex}-0`] ?? "" : ""}
+                  {(() => {
+                    const midi = openMidi[stringIndex];
+                    const deg = scaleDegree(midi, rootPc, intervals);
+                    const key = KEY_AT[`${stringIndex}-0`] ?? "";
+                    const text = fretLabelText(midi, deg, labelMode);
+                    return text || (showKeys ? key : "");
+                  })()}
                 </span>
               </button>
               {Array.from({ length: FRET_COUNT }, (_, fret) => {
@@ -252,23 +273,26 @@ export function Fretboard() {
                   >
                     <span
                       className={
-                        "fret-dot relative z-10 flex size-7 items-center justify-center rounded-full text-[0.65rem] font-mono " +
+                        "fret-dot relative z-10 flex items-center justify-center rounded-full font-mono " +
+                        (labelMode === "both" ? "size-8 px-0.5 text-[0.5rem] leading-tight " : "size-7 text-[0.65rem] ") +
                         (active || grooveHit
                           ? "bg-live text-bg"
                           : deg === 0
                             ? "bg-accent/90 text-accent-fg"
                             : deg != null
                               ? "bg-raised text-fg"
-                              : "text-transparent")
+                              : labelMode === "notes" || labelMode === "both"
+                                ? "text-muted"
+                                : "text-transparent")
                       }
                     >
-                      {showNotes
-                        ? noteName(midi).replace(/\d+$/, "")
-                        : showKeys
-                          ? KEY_AT[`${stringIndex}-${f}`] ?? ""
-                          : deg != null
-                            ? "•"
-                            : ""}
+                      {(() => {
+                        const key = KEY_AT[`${stringIndex}-${f}`] ?? "";
+                        const text = fretLabelText(midi, deg, labelMode);
+                        if (text) return text;
+                        if (showKeys) return key;
+                        return deg != null ? "•" : "";
+                      })()}
                     </span>
                   </button>
                 );

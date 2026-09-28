@@ -18,10 +18,8 @@ export function AmpRack() {
   const toggleMute = useBassStore((s) => s.toggleMute);
   const tuningId = useBassStore((s) => s.tuningId);
   const setTuningId = useBassStore((s) => s.setTuningId);
-  const showNotes = useBassStore((s) => s.showNotes);
   const showKeys = useBassStore((s) => s.showKeys);
   const metronome = useBassStore((s) => s.metronome);
-  const toggleNotes = useBassStore((s) => s.toggleNotes);
   const toggleKeys = useBassStore((s) => s.toggleKeys);
   const toggleMetronome = useBassStore((s) => s.toggleMetronome);
   const beatOn = useBassStore((s) => s.beatOn);
@@ -131,13 +129,6 @@ export function AmpRack() {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button
-          variant={showNotes ? "primary" : "outline"}
-          size="sm"
-          onClick={toggleNotes}
-        >
-          Notes
-        </Button>
         <Button
           variant={showKeys ? "primary" : "outline"}
           size="sm"

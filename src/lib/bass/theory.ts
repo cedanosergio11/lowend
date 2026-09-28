@@ -91,6 +91,29 @@ export function scaleDegree(
   return intervals.includes(rel) ? rel : null;
 }
 
+
+/** Movable Do: Do = selected root. Flat degrees use Me / Le / Te. Blues ♯4/♭5 (6) → Fi. */
+export const SOLFEGE_BY_DEGREE: Record<number, string> = {
+  0: "Do",
+  2: "Re",
+  3: "Me",
+  4: "Mi",
+  5: "Fa",
+  6: "Fi",
+  7: "Sol",
+  8: "Le",
+  9: "La",
+  10: "Te",
+  11: "Ti",
+};
+
+export type FretLabelMode = "notes" | "solfege" | "both";
+
+export function solfegeForDegree(degree: number | null): string | null {
+  if (degree == null) return null;
+  return SOLFEGE_BY_DEGREE[degree] ?? null;
+}
+
 /** Real-scale fret widths, normalized so they sum to 1. */
 export function fretWidths(count: number): number[] {
   const raw: number[] = [];

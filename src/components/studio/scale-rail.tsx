@@ -1,6 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { useBassStore } from "@/lib/bass/store";
-import { ROOTS, SCALES, type ScaleId } from "@/lib/bass/theory";
+import {
+  ROOTS,
+  SCALES,
+  type FretLabelMode,
+  type ScaleId,
+} from "@/lib/bass/theory";
 
 const SCALE_ORDER: ScaleId[] = [
   "off",
@@ -13,11 +18,19 @@ const SCALE_ORDER: ScaleId[] = [
   "majPent",
 ];
 
+const LABEL_MODES: { id: FretLabelMode; label: string }[] = [
+  { id: "notes", label: "Notes" },
+  { id: "solfege", label: "Solfège" },
+  { id: "both", label: "Both" },
+];
+
 export function ScaleRail() {
   const scaleId = useBassStore((s) => s.scaleId);
   const rootPc = useBassStore((s) => s.rootPc);
+  const labelMode = useBassStore((s) => s.labelMode);
   const setScaleId = useBassStore((s) => s.setScaleId);
   const setRootPc = useBassStore((s) => s.setRootPc);
+  const setLabelMode = useBassStore((s) => s.setLabelMode);
 
   return (
     <section
@@ -53,7 +66,7 @@ export function ScaleRail() {
       <p className="mb-2 font-mono text-xs tracking-wide text-muted uppercase">
         Scale
       </p>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="mb-4 flex flex-wrap gap-1.5">
         {SCALE_ORDER.map((id) => (
           <Button
             key={id}
@@ -65,6 +78,25 @@ export function ScaleRail() {
           </Button>
         ))}
       </div>
+
+      <p className="mb-2 font-mono text-xs tracking-wide text-muted uppercase">
+        Labels
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {LABEL_MODES.map((mode) => (
+          <Button
+            key={mode.id}
+            variant={labelMode === mode.id ? "primary" : "outline"}
+            size="sm"
+            onClick={() => setLabelMode(mode.id)}
+          >
+            {mode.label}
+          </Button>
+        ))}
+      </div>
+      <p className="mt-2 font-mono text-[0.65rem] text-muted">
+        Movable Do = Root. Solfège only on lit frets.
+      </p>
     </section>
   );
 }
