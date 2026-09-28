@@ -94,7 +94,7 @@ export function ScaleRail() {
           </Button>
         ))}
       </div>
-      <p className="mt and-2 font-mono text-[0.65rem] text-muted">
+      <p className="mt-2 font-mono text-[0.65rem] text-muted">
         Movable Do = Root. Needs a scale — Major for full Do–Ti. Scale Off
         still paints Major under Solfège/Both.
       </p>
