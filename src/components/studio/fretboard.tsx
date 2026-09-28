@@ -73,6 +73,11 @@ export function Fretboard() {
 
   const openMidi = TUNINGS[tuningId].openMidi;
   const intervals = SCALES[scaleId].intervals;
+  // Solfège/Both with Scale Off still need degrees — paint movable-Do Major.
+  const labelIntervals =
+    (labelMode === "solfege" || labelMode === "both") && scaleId === "off"
+      ? SCALES.major.intervals
+      : intervals;
   const groove = grooveById(grooveId);
   const activeHits =
     playing && groove && playhead >= 0 ? hitsAt(groove, playhead) : [];
@@ -238,15 +243,15 @@ export function Fretboard() {
               >
                 <span
                   className={
-                    "fret-dot relative z-10 flex size-7 items-center justify-center rounded-full text-[0.65rem] font-mono " +
+                    "fret-dot relative z-10 flex size-9 items-center justify-center rounded-full text-sm font-mono font-semibold " +
                     (lastNote?.string === stringIndex && lastNote.fret === 0
                       ? "bg-live text-bg"
-                      : "text-muted")
+                      : "text-fg")
                   }
                 >
                   {(() => {
                     const midi = openMidi[stringIndex];
-                    const deg = scaleDegree(midi, rootPc, intervals);
+                    const deg = scaleDegree(midi, rootPc, labelIntervals);
                     const key = KEY_AT[`${stringIndex}-0`] ?? "";
                     const text = fretLabelText(midi, deg, labelMode);
                     return text || (showKeys ? key : "");
@@ -256,7 +261,7 @@ export function Fretboard() {
               {Array.from({ length: FRET_COUNT }, (_, fret) => {
                 const f = fret + 1;
                 const midi = fretMidi(openMidi, stringIndex, f);
-                const deg = scaleDegree(midi, rootPc, intervals);
+                const deg = scaleDegree(midi, rootPc, labelIntervals);
                 const active =
                   lastNote?.string === stringIndex && lastNote.fret === f;
                 const grooveHit = activeHits.some(
@@ -293,16 +298,18 @@ export function Fretboard() {
                     ) : null}
                     <span
                       className={
-                        "fret-dot relative z-10 flex items-center justify-center rounded-full font-mono " +
-                        (labelMode === "both" ? "size-8 px-0.5 text-[0.5rem] leading-tight " : "size-7 text-[0.65rem] ") +
+                        "fret-dot relative z-10 flex items-center justify-center rounded-full font-mono font-semibold tracking-tight " +
+                        (labelMode === "both"
+                          ? "size-10 min-w-10 px-1 text-[0.7rem] leading-tight "
+                          : "size-9 text-sm ") +
                         (active || grooveHit
                           ? "bg-live text-bg"
                           : deg === 0
-                            ? "bg-accent/90 text-accent-fg"
+                            ? "bg-accent text-accent-fg"
                             : deg != null
-                              ? "bg-raised text-fg"
+                              ? "bg-raised text-fg ring-1 ring-fg/25"
                               : labelMode === "notes" || labelMode === "both"
-                                ? "text-muted"
+                                ? "text-fg/80"
                                 : "text-transparent")
                       }
                     >
