@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ampInput, currentTime, plugIn, scheduleClick, setAmp } from "@/lib/bass/audio";
+import { ampInput, currentTime, latencyMs, plugIn, scheduleClick, setAmp } from "@/lib/bass/audio";
 import { BassSynth } from "@/lib/bass/bass-synth";
 import { EIGHTHS_PER_BAR, type SongTab } from "@/lib/bass/songs";
 import {
@@ -23,8 +23,10 @@ const SPEEDS: PlaybackSpeed[] = [0.5, 0.75, 1];
 const STRING_INDEX = { G: 0, D: 1, A: 2, E: 3 } as const;
 
 export interface PlayerCursor extends CursorPosition {
-  /** The note sounding right now, if any (for the fretboard). */
+  /** First sounding note (for the fretboard). */
   note: NoteEvent | null;
+  /** Every event with startSec <= t < startSec + durationSec (holds already merged). */
+  notes: NoteEvent[];
 }
 
 /** Debug log of what was scheduled (verification only; capped). */
@@ -41,6 +43,8 @@ interface Session {
   loop: boolean;
   /** AudioContext time where pass 0 begins. */
   t0: number;
+  /** Output latency (s): visuals trail the scheduler clock by this so they match what you hear. */
+  latency: number;
   pass: number;
   nextEvent: number;
   nextClick: number;
@@ -146,7 +150,7 @@ export function SongPlayer({
 
   function frame(s: Session) {
     if (session.current !== s) return;
-    const t = currentTime() - s.t0;
+    const t = currentTime() - s.t0 - s.latency;
     const total = s.data.totalSeconds;
     if (!s.loop && t >= total) {
       stop();
@@ -154,10 +158,11 @@ export function SongPlayer({
     }
     const local = t < 0 ? 0 : s.loop ? t % total : t;
     const pos = cursorAt(s.data, local);
-    const note = pos
-      ? (s.data.events.find((e) => local >= e.startSec && local < e.startSec + e.durationSec) ?? null)
-      : null;
-    onCursorRef.current(pos ? { ...pos, note } : null);
+    const notes = pos
+      ? s.data.events.filter((e) => local >= e.startSec && local < e.startSec + e.durationSec)
+      : [];
+    const note = notes[0] ?? null;
+    onCursorRef.current(pos ? { ...pos, note, notes } : null);
     onNoteRef.current(note);
     setElapsed(local);
     s.raf = requestAnimationFrame(() => frame(s));
@@ -176,11 +181,13 @@ export function SongPlayer({
     setAmp({ drive: 0 });
     const t0 = amp.audio.currentTime + START_DELAY;
     window.__lowendSongDemo = { eighthSec: data.eighthSec, t0, log: [] };
+    (window as unknown as { __lowendSongClock?: () => number }).__lowendSongClock = () => currentTime() - t0;
     const s: Session = {
       synth: new BassSynth(amp.audio, amp.input),
       data,
       loop: Boolean(sectionId),
       t0,
+      latency: (latencyMs() ?? 0) / 1000,
       pass: 0,
       nextEvent: 0,
       nextClick: 0,

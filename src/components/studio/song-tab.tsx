@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SongPlayer, type PlayerCursor } from "@/components/studio/song-player";
+import type { NoteEvent } from "@/lib/bass/song-playback";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { setMetronomeBpm, setMetronomeTimeSig } from "@/lib/bass/metronome";
@@ -15,6 +16,7 @@ import {
   type StandardCell,
   type TabCell,
   type TabSection,
+  type TabString,
 } from "@/lib/bass/songs";
 
 type View = "eb" | "standard";
@@ -28,40 +30,48 @@ const CONF_STYLE: Record<Confidence, string> = {
 export const METRONOME_BPM_EVENT = "lowend:metronome-bpm";
 
 const sectionAnchor = (id: string) => `song-section-${id}`;
+const NO_NOTES: NoteEvent[] = [];
 
 export function SongTabView() {
   const song = SONGS[0];
   const [view, setView] = useState<View>("eb");
   const [applied, setApplied] = useState(false);
   const [cursor, setCursor] = useState<PlayerCursor | null>(null);
-  const cursorKey = cursor ? `${cursor.sectionId}|${cursor.barIndex}|${cursor.cellIndex}` : "";
+  const barKey = cursor ? `${cursor.sectionId}|${cursor.barIndex}` : "";
   const lastCursorKey = useRef("");
   const lastSection = useRef("");
   function onCursor(c: PlayerCursor | null) {
-    const k = c ? `${c.sectionId}|${c.barIndex}|${c.cellIndex}|${c.note?.startSec ?? ""}` : "";
+    const k = c
+      ? `${c.sectionId}|${c.barIndex}|${c.cellIndex}|${c.notes.map((n) => `${n.string}${n.startEighth}`).join(",")}`
+      : "";
     if (k === lastCursorKey.current) return;
     lastCursorKey.current = k;
     setCursor(c);
   }
-  // Auto-scroll: section card into view when the section changes; keep the cursor cell visible horizontally.
+  // Auto-scroll per bar: only when the playing bar leaves a comfortable margin (no jitter).
   useEffect(() => {
     if (!cursor) {
       lastSection.current = "";
       return;
     }
-    if (cursor.sectionId !== lastSection.current) {
-      lastSection.current = cursor.sectionId;
-      document
-        .getElementById(sectionAnchor(cursor.sectionId))
-        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const card = document.getElementById(sectionAnchor(cursor.sectionId));
+    const box = card?.querySelector<HTMLElement>("[data-tab-scroll]");
+    if (!card || !box) return;
+    const r = box.getBoundingClientRect();
+    const vh = window.innerHeight;
+    if (r.top < 64 || r.bottom > vh - 48) {
+      window.scrollTo({ top: window.scrollY + r.top - vh * 0.3, behavior: "smooth" });
     }
-    const cell = document.querySelector<HTMLElement>(`#${sectionAnchor(cursor.sectionId)} [data-cursor]`);
-    const box = cell?.closest<HTMLElement>("[data-tab-scroll]");
-    if (cell && box) {
-      const l = cell.offsetLeft - box.scrollLeft;
-      if (l < 24 || l > box.clientWidth - 48) box.scrollLeft = cell.offsetLeft - box.clientWidth / 3;
+    const bar = box.querySelector<HTMLElement>(`[data-bar="${cursor.barIndex}"]`);
+    if (bar) {
+      const left = bar.offsetLeft - box.scrollLeft;
+      const right = left + bar.offsetWidth;
+      if (left < 16 || right > box.clientWidth - 16)
+        box.scrollTo({ left: Math.max(0, bar.offsetLeft - 32), behavior: "smooth" });
     }
-  }, [cursorKey, cursor]);
+    lastSection.current = cursor.sectionId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barKey]);
   const setTuningId = useBassStore((s) => s.setTuningId);
   const setRootPc = useBassStore((s) => s.setRootPc);
   const setScaleId = useBassStore((s) => s.setScaleId);
@@ -168,7 +178,13 @@ export function SongTabView() {
 
       <div className="mt-5 grid min-w-0 gap-3">
         {song.sections.map((s) => (
-          <SectionCard key={s.name} section={s} view={view} cursor={cursor?.sectionId === s.id ? cursor : null} />
+          <SectionCard
+            key={s.name}
+            section={s}
+            view={view}
+            cursor={cursor?.sectionId === s.id ? cursor : null}
+            notes={cursor ? cursor.notes.filter((n) => n.sectionId === s.id) : NO_NOTES}
+          />
         ))}
       </div>
     </section>
@@ -183,10 +199,12 @@ function SectionCard({
   section,
   view,
   cursor,
+  notes,
 }: {
   section: TabSection;
   view: View;
   cursor: PlayerCursor | null;
+  notes: NoteEvent[];
 }) {
   return (
     <article
@@ -205,7 +223,7 @@ function SectionCard({
           <span className="font-mono text-xs text-muted">{section.repeat}</span>
         ) : null}
       </div>
-      <TabGrid section={section} view={view} cursor={cursor} />
+      <TabGrid section={section} view={view} cursor={cursor} notes={notes} />
       {section.notes.length ? (
         <ul className="mt-2 flex flex-col gap-0.5 text-xs text-muted">
           {section.notes.map((n) => (
@@ -250,13 +268,28 @@ function TabGrid({
   section,
   view,
   cursor,
+  notes,
 }: {
   section: TabSection;
   view: View;
   cursor: PlayerCursor | null;
+  notes: NoteEvent[];
 }) {
-  const at = cursor ? cursor.barIndex * section.bars[0].G.length + cursor.cellIndex : -1;
-  const sounding = cursor?.note?.sectionId === section.id ? cursor.note : null;
+  const perBar = section.bars[0]?.G.length ?? 8;
+  const at = cursor ? cursor.barIndex * perBar + cursor.cellIndex : -1;
+  // Lit cells per string: struck cell + its following ~ cells, for each sounding event.
+  const lit: Partial<Record<TabString, Set<number>>> = {};
+  for (const n of notes) {
+    const row = section.bars.flatMap((b) => b[n.string]);
+    const set = (lit[n.string] ??= new Set<number>());
+    const start = n.barIndex * perBar + n.cellIndex;
+    set.add(start);
+    for (let i = start + 1; i < row.length && i < start + n.durationEighths; i++) {
+      const c = row[i];
+      if (!c || !("hold" in c)) break;
+      set.add(i);
+    }
+  }
   return (
     <div data-tab-scroll className="max-w-full overflow-x-auto rounded-md bg-bg p-2">
       <div className="inline-flex flex-col font-mono text-sm leading-6">
@@ -271,23 +304,20 @@ function TabGrid({
               <span className="w-4 text-muted">{str}</span>
               <span className="text-subtle">|</span>
               {section.bars.map((bar, bi) => (
-                <Fragment key={bi}>
+                <span key={bi} data-bar={bi} className="inline-flex">
                   {bar[str].map((_, ci) => {
                     const i = k++;
                     return <Cell
                         key={ci}
                         cell={row[i]}
                         sustainNext={isHold(row[i + 1])}
+                        id={`${str}-${i}`}
                         cursor={i === at}
-                        hit={
-                          !!sounding &&
-                          sounding.string === str &&
-                          sounding.barIndex * bar[str].length + sounding.cellIndex === i
-                        }
+                        hit={lit[str]?.has(i) ?? false}
                       />;
                   })}
                   <span className="text-subtle">|</span>
-                </Fragment>
+                </span>
               ))}
             </div>
           );
@@ -313,9 +343,11 @@ function SustainLine({ from }: { from: "left" | "center" }) {
 function Cell({
   cell,
   sustainNext,
+  id,
   cursor = false,
   hit = false,
 }: {
+  id?: string;
   cell: Shown;
   sustainNext: boolean;
   cursor?: boolean;
@@ -323,10 +355,10 @@ function Cell({
 }) {
   const base = cn(
     "relative inline-block w-6 text-center",
-    cursor && "bg-accent/25",
-    hit && "rounded-sm bg-accent font-semibold !text-accent-fg",
+    cursor && !hit && "bg-fg/10",
+    hit && "note-lit rounded-sm bg-accent font-bold !text-accent-fg",
   );
-  const cur = cursor ? { "data-cursor": "" } : {};
+  const cur = { "data-cell": id, ...(cursor ? { "data-cursor": "" } : {}), ...(hit ? { "data-lit": "" } : {}) };
   if (cell && "hold" in cell) {
     return (
       <span {...cur} className={base} title="Hold (sustain)" aria-label="hold">
