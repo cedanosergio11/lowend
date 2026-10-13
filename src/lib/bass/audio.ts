@@ -156,6 +156,16 @@ export function silenceAll() {
   for (let i = 0; i < voices.length; i++) releaseString(i, 0.04);
 }
 
+/**
+ * Amp-rack input (tone filter -> drive -> comp -> cab -> amp volume -> master).
+ * Song demo synth feeds here so it follows the Amp rack controls like a real bass.
+ */
+export function ampInput(): { audio: AudioContext; input: AudioNode } | null {
+  const audio = ensureGraph();
+  if (!audio || !toneFilter) return null;
+  return { audio, input: toneFilter };
+}
+
 export function currentTime(): number {
   return ctx ? ctx.currentTime : 0;
 }

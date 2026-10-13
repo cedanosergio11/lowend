@@ -1,4 +1,5 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { SongPlayer, type PlayerCursor } from "@/components/studio/song-player";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { setMetronomeBpm, setMetronomeTimeSig } from "@/lib/bass/metronome";
@@ -32,6 +33,35 @@ export function SongTabView() {
   const song = SONGS[0];
   const [view, setView] = useState<View>("eb");
   const [applied, setApplied] = useState(false);
+  const [cursor, setCursor] = useState<PlayerCursor | null>(null);
+  const cursorKey = cursor ? `${cursor.sectionId}|${cursor.barIndex}|${cursor.cellIndex}` : "";
+  const lastCursorKey = useRef("");
+  const lastSection = useRef("");
+  function onCursor(c: PlayerCursor | null) {
+    const k = c ? `${c.sectionId}|${c.barIndex}|${c.cellIndex}|${c.note?.startSec ?? ""}` : "";
+    if (k === lastCursorKey.current) return;
+    lastCursorKey.current = k;
+    setCursor(c);
+  }
+  // Auto-scroll: section card into view when the section changes; keep the cursor cell visible horizontally.
+  useEffect(() => {
+    if (!cursor) {
+      lastSection.current = "";
+      return;
+    }
+    if (cursor.sectionId !== lastSection.current) {
+      lastSection.current = cursor.sectionId;
+      document
+        .getElementById(sectionAnchor(cursor.sectionId))
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    const cell = document.querySelector<HTMLElement>(`#${sectionAnchor(cursor.sectionId)} [data-cursor]`);
+    const box = cell?.closest<HTMLElement>("[data-tab-scroll]");
+    if (cell && box) {
+      const l = cell.offsetLeft - box.scrollLeft;
+      if (l < 24 || l > box.clientWidth - 48) box.scrollLeft = cell.offsetLeft - box.clientWidth / 3;
+    }
+  }, [cursorKey, cursor]);
   const setTuningId = useBassStore((s) => s.setTuningId);
   const setRootPc = useBassStore((s) => s.setRootPc);
   const setScaleId = useBassStore((s) => s.setScaleId);
@@ -113,6 +143,8 @@ export function SongTabView() {
         </div>
       </div>
 
+      <SongPlayer song={song} onCursor={onCursor} />
+
       {view === "standard" ? (
         <p className="mt-3 text-xs text-muted">
           Standard EADG view: every fret is one lower.{" "}
@@ -136,7 +168,7 @@ export function SongTabView() {
 
       <div className="mt-5 grid min-w-0 gap-3">
         {song.sections.map((s) => (
-          <SectionCard key={s.name} section={s} view={view} />
+          <SectionCard key={s.name} section={s} view={view} cursor={cursor?.sectionId === s.id ? cursor : null} />
         ))}
       </div>
     </section>
@@ -147,9 +179,23 @@ function Chip({ children }: { children: React.ReactNode }) {
   return <span className="rounded-sm bg-raised px-2 py-1 text-fg">{children}</span>;
 }
 
-function SectionCard({ section, view }: { section: TabSection; view: View }) {
+function SectionCard({
+  section,
+  view,
+  cursor,
+}: {
+  section: TabSection;
+  view: View;
+  cursor: PlayerCursor | null;
+}) {
   return (
-    <article id={sectionAnchor(section.id)} className="scroll-mt-4 min-w-0 rounded-lg bg-raised/60 p-3">
+    <article
+      id={sectionAnchor(section.id)}
+      className={cn(
+        "scroll-mt-4 min-w-0 rounded-lg bg-raised/60 p-3 transition-shadow",
+        cursor && "ring-1 ring-accent/60",
+      )}
+    >
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <h3 className="font-display text-base tracking-wide text-fg">{section.name}</h3>
         <span className={cn("rounded-sm px-1.5 py-0.5 font-mono text-[11px] uppercase", CONF_STYLE[section.confidence])}>
@@ -159,7 +205,7 @@ function SectionCard({ section, view }: { section: TabSection; view: View }) {
           <span className="font-mono text-xs text-muted">{section.repeat}</span>
         ) : null}
       </div>
-      <TabGrid section={section} view={view} />
+      <TabGrid section={section} view={view} cursor={cursor} />
       {section.notes.length ? (
         <ul className="mt-2 flex flex-col gap-0.5 text-xs text-muted">
           {section.notes.map((n) => (
@@ -200,9 +246,19 @@ function isHold(c: Shown | undefined): boolean {
   return !!c && "hold" in c;
 }
 
-function TabGrid({ section, view }: { section: TabSection; view: View }) {
+function TabGrid({
+  section,
+  view,
+  cursor,
+}: {
+  section: TabSection;
+  view: View;
+  cursor: PlayerCursor | null;
+}) {
+  const at = cursor ? cursor.barIndex * section.bars[0].G.length + cursor.cellIndex : -1;
+  const sounding = cursor?.note?.sectionId === section.id ? cursor.note : null;
   return (
-    <div className="max-w-full overflow-x-auto rounded-md bg-bg p-2">
+    <div data-tab-scroll className="max-w-full overflow-x-auto rounded-md bg-bg p-2">
       <div className="inline-flex flex-col font-mono text-sm leading-6">
         {TAB_STRINGS.map((str) => {
           // Flatten the row so sustains can run across bar lines.
@@ -218,7 +274,17 @@ function TabGrid({ section, view }: { section: TabSection; view: View }) {
                 <Fragment key={bi}>
                   {bar[str].map((_, ci) => {
                     const i = k++;
-                    return <Cell key={ci} cell={row[i]} sustainNext={isHold(row[i + 1])} />;
+                    return <Cell
+                        key={ci}
+                        cell={row[i]}
+                        sustainNext={isHold(row[i + 1])}
+                        cursor={i === at}
+                        hit={
+                          !!sounding &&
+                          sounding.string === str &&
+                          sounding.barIndex * bar[str].length + sounding.cellIndex === i
+                        }
+                      />;
                   })}
                   <span className="text-subtle">|</span>
                 </Fragment>
@@ -244,11 +310,26 @@ function SustainLine({ from }: { from: "left" | "center" }) {
   );
 }
 
-function Cell({ cell, sustainNext }: { cell: Shown; sustainNext: boolean }) {
-  const base = "relative inline-block w-6 text-center";
+function Cell({
+  cell,
+  sustainNext,
+  cursor = false,
+  hit = false,
+}: {
+  cell: Shown;
+  sustainNext: boolean;
+  cursor?: boolean;
+  hit?: boolean;
+}) {
+  const base = cn(
+    "relative inline-block w-6 text-center",
+    cursor && "bg-accent/25",
+    hit && "rounded-sm bg-accent font-semibold !text-accent-fg",
+  );
+  const cur = cursor ? { "data-cursor": "" } : {};
   if (cell && "hold" in cell) {
     return (
-      <span className={base} title="Hold (sustain)" aria-label="hold">
+      <span {...cur} className={base} title="Hold (sustain)" aria-label="hold">
         <SustainLine from="left" />
         <span className="invisible">~</span>
       </span>
@@ -257,6 +338,7 @@ function Cell({ cell, sustainNext }: { cell: Shown; sustainNext: boolean }) {
   if (cell && "unplayable" in cell) {
     return (
       <span
+        {...cur}
         className={cn(base, "font-medium text-red-400")}
         title="Open E♭ — can't be played in standard tuning (fret −1)"
         aria-label="unplayable in standard tuning"
@@ -265,9 +347,14 @@ function Cell({ cell, sustainNext }: { cell: Shown; sustainNext: boolean }) {
       </span>
     );
   }
-  if (cell === null) return <span className={cn(base, "text-subtle")}>-</span>;
+  if (cell === null)
+    return (
+      <span {...cur} className={cn(base, "text-subtle")}>
+        -
+      </span>
+    );
   return (
-    <span className={cn(base, "text-fg")}>
+    <span {...cur} className={cn(base, "text-fg")}>
       {sustainNext ? <SustainLine from="center" /> : null}
       <span className="relative">{cell.fret}</span>
     </span>
