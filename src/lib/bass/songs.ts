@@ -28,6 +28,7 @@ export interface FormStep {
   /** Section id, or "intro" / "end" for non-tab steps. */
   sectionId: string;
   times?: number;
+  /** Length of this step in bars (per step, not per section). */
   bars?: number;
   note?: string;
 }
@@ -194,18 +195,29 @@ const PISTA_1_SECTIONS: TabSection[] = [
   }),
 ];
 
-const v = (times: number): FormStep => ({ sectionId: "verse", times });
+/**
+ * Form modelling:
+ * - `bars` on a step is its length in bars for that step (overrides the section's
+ *   drawn length, e.g. G hold = 1 or 4 bars).
+ * - A verse of N riffs is: verse x(N-1), then one last pass of verse bar 1 only
+ *   (bars: 1), then the fill (which replaces verse bar 2) right before the pre-chorus.
+ */
+const verse = (riffs: number): FormStep[] => [
+  { sectionId: "verse", times: riffs - 1 },
+  { sectionId: "verse", times: 1, bars: 1, note: "last pass: bar 1 only, bar 2 replaced by fill" },
+  { sectionId: "fill", times: 1, bars: 1 },
+];
 const PRE: FormStep = { sectionId: "pre", times: 3 };
-const G_BAR: FormStep = { sectionId: "g-hold", note: "1 bar, then lead in A1 G1" };
-const G_LONG: FormStep = { sectionId: "g-hold", note: "long hold, ~3-4 bars" };
+const G_BAR: FormStep = { sectionId: "g-hold", bars: 1, note: "1 bar, then lead in A1 G1" };
+const G_LONG: FormStep = { sectionId: "g-hold", bars: 4, note: "3-4 bars, estimated" };
 const CHORUS: FormStep = { sectionId: "chorus", times: 8 };
 
 const PISTA_1_FORM: FormPart[] = [
   { name: "Intro", steps: [{ sectionId: "intro", bars: 2, note: "no bass" }] },
-  { name: "Part 1", steps: [v(10), PRE, G_LONG] },
-  { name: "Part 2", steps: [v(4), PRE, G_BAR, CHORUS] },
-  { name: "Part 3", steps: [v(6), PRE, G_BAR, CHORUS, G_LONG] },
-  { name: "Part 4", steps: [v(4), PRE, G_BAR, CHORUS, { sectionId: "end", note: "end on Eb" }] },
+  { name: "Part 1", steps: [...verse(10), PRE, G_LONG] },
+  { name: "Part 2", steps: [...verse(4), PRE, G_BAR, CHORUS] },
+  { name: "Part 3", steps: [...verse(6), PRE, G_BAR, CHORUS, G_LONG] },
+  { name: "Part 4", steps: [...verse(4), PRE, G_BAR, CHORUS, { sectionId: "end", note: "end on Eb" }] },
 ];
 
 export const SONGS: SongTab[] = [

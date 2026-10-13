@@ -34,4 +34,25 @@ const hold = sec("g-hold").bars[1].E;
 assert.equal(hold.filter((c) => c && "fret" in c).length, 1);
 assert.equal(hold.filter((c) => c && "hold" in c).length, 7);
 assert.deepEqual(songPresets(song), { bpm: 96, root: "G", rootPc: 7, scale: "minor", tuningId: "eb" });
+const f = song.form;
+assert.deepEqual(f.map((p) => p.name), ["Intro", "Part 1", "Part 2", "Part 3", "Part 4"]);
+assert.deepEqual(f[0].steps, [{ sectionId: "intro", bars: 2, note: "no bass" }]);
+const riffs = [10, 4, 6, 4];
+for (let i = 1; i <= 4; i++) {
+  const st = f[i].steps;
+  assert.deepEqual(st[0], { sectionId: "verse", times: riffs[i - 1] - 1 });
+  assert.equal(st[1].sectionId, "verse"); assert.equal(st[1].bars, 1); assert.equal(st[1].times, 1);
+  assert.deepEqual(st[2], { sectionId: "fill", times: 1, bars: 1 });
+  assert.deepEqual(st[3], { sectionId: "pre", times: 3 });
+}
+const ids = (i) => f[i].steps.slice(4).map((s) => s.sectionId);
+assert.deepEqual(ids(1), ["g-hold"]);
+assert.deepEqual(ids(2), ["g-hold", "chorus"]);
+assert.deepEqual(ids(3), ["g-hold", "chorus", "g-hold"]);
+assert.deepEqual(ids(4), ["g-hold", "chorus", "end"]);
+const holds = f.flatMap((p) => p.steps).filter((s) => s.sectionId === "g-hold");
+assert.deepEqual(holds.map((s) => s.bars), [4, 1, 1, 4, 1]);
+for (const h of holds.filter((s) => s.bars === 4)) assert.equal(h.note, "3-4 bars, estimated");
+for (const p of f.slice(2)) assert.equal(p.steps[4].bars, 1);
+assert.ok(song.form.flatMap((p) => p.steps).filter((s) => s.sectionId === "chorus").every((s) => s.times === 8));
 console.log("check-songs: all assertions passed");
