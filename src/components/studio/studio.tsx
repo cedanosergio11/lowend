@@ -7,6 +7,7 @@ import { GrooveDeck } from "@/components/studio/groove-deck";
 import { SongToTabs } from "@/components/studio/song-to-tabs";
 import { MetronomePanel } from "@/components/studio/metronome-panel";
 import { Button } from "@/components/ui/button";
+import { StudioNav } from "@/components/studio/studio-nav";
 import { click, currentTime, plugIn, pluck, resumeIfNeeded } from "@/lib/bass/audio";
 import { grooveById, totalSteps } from "@/lib/bass/grooves";
 import { useBassStore } from "@/lib/bass/store";
@@ -168,7 +169,8 @@ export function Studio() {
             </h1>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <StudioNav />
           {live ? (
             <span className="inline-flex h-11 items-center gap-2 rounded-md bg-raised px-4 font-mono text-xs tracking-wider text-fg uppercase">
               <span className="beat-led size-2 rounded-full bg-live on" />

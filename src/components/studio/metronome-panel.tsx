@@ -3,6 +3,7 @@ import { Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  getMetronomeBpm,
   getMetronomeLatencyMs,
   onMetronomeStopped,
   setHatRate,
@@ -23,7 +24,7 @@ const BPM_MAX = 240;
 export function MetronomePanel() {
   const live = useBassStore((s) => s.live);
   const goLive = useBassStore((s) => s.goLive);
-  const [bpm, setBpm] = useState(100);
+  const [bpm, setBpm] = useState(() => getMetronomeBpm());
   const [sig, setSig] = useState<TimeSig>("4/4");
   const [sound, setSound] = useState<MetroSound>("click");
   const [hats, setHats] = useState<HatRate>("8ths");
@@ -40,6 +41,16 @@ export function MetronomePanel() {
       setMetronomeBeatListener(null);
       stopMetronome();
     };
+  }, []);
+
+  useEffect(() => {
+    // Song tab "Apply presets" sets the engine BPM; mirror it in the panel.
+    function onPreset(e: Event) {
+      const n = (e as CustomEvent<number>).detail;
+      if (typeof n === "number") setBpm(n);
+    }
+    window.addEventListener("lowend:metronome-bpm", onPreset);
+    return () => window.removeEventListener("lowend:metronome-bpm", onPreset);
   }, []);
 
   useEffect(() => {
