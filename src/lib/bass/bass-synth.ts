@@ -1,6 +1,6 @@
 /**
  * Song-demo bass synth (440Hz spec).
- * Voice: saw @ f + sine @ f/2 -> lowpass 900 Hz -> ADSR env -> bus -> amp rack input.
+ * Voice: saw @ f + sine @ f/2 (f > 55 Hz, else sine @ f) -> lowpass 900 Hz -> ADSR env -> bus -> HPF 35 Hz (12 dB/oct) -> amp rack input.
  * Env: attack 5 ms, decay 250 ms to 60 % sustain, release 80 ms.
  * ONE envelope per NoteEvent (holds are pre-merged); long notes fade sustain toward 30 %
  * across the event (reaches 30 % at 7.5 s, the long-G hold length).
@@ -15,6 +15,10 @@ export const SYNTH = {
   holdFadeRefSec: 7.5,
   releaseSec: 0.08,
   lowpassHz: 900,
+  /** Sub sine drops an octave only above this (A1); below it the sine sits at the note pitch. */
+  subOctaveMinHz: 55,
+  /** Output highpass (12 dB/oct) before the amp rack: kills sub-audible energy and DC. */
+  highpassHz: 35,
   sawLevel: 0.5,
   subLevel: 0.5,
   /** Bus level into the amp rack (≈ −10 dBFS peak per voice before amp volume). Hearing-safe default. */
@@ -50,7 +54,12 @@ export class BassSynth {
   ) {
     this.bus = audio.createGain();
     this.bus.gain.value = SYNTH.busLevel;
-    this.bus.connect(destination);
+    const hp = audio.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = SYNTH.highpassHz;
+    // Web Audio HP/LP Q is in dB: -3.01 dB = linear 0.707 (Butterworth, no bump).
+    hp.Q.value = 20 * Math.log10(Math.SQRT1_2);
+    this.bus.connect(hp).connect(destination);
   }
 
   /** Schedule one note at absolute AudioContext time `when`. */
@@ -62,7 +71,7 @@ export class BassSynth {
     saw.frequency.setValueAtTime(f, when);
     const sub = a.createOscillator();
     sub.type = "sine";
-    sub.frequency.setValueAtTime(f / 2, when);
+    sub.frequency.setValueAtTime(f > SYNTH.subOctaveMinHz ? f / 2 : f, when);
     const sawG = a.createGain();
     sawG.gain.value = SYNTH.sawLevel;
     const subG = a.createGain();
