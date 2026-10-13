@@ -182,8 +182,7 @@ const PISTA_1_SECTIONS: TabSection[] = [
     repeat: "x8 (Eb pedal)",
     notes: [
       "C Bb, then 8ths on low Eb.",
-      "The last 2 notes vary per pass; the tab shows one version, not a definitive one.",
-      "last 2 notes vary (G-Ab, Ab-Bb, F-G…)",
+      "The last 2 notes vary per pass (G-Ab, Ab-Bb, F-G…); the tab shows one version, not a definitive one.",
       "some Eb hits jump up an octave (D string fret 2), play by ear",
     ],
     ascii: [
