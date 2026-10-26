@@ -3,6 +3,13 @@ import { BassMark } from "@/components/studio/mark";
 import { StudioNav } from "@/components/studio/studio-nav";
 import { SongTabView } from "@/components/studio/song-tab";
 import { Fretboard } from "@/components/studio/fretboard";
+import { SONGS, songPresets } from "@/lib/bass/songs";
+import { SCALES } from "@/lib/bass/theory";
+
+const SONG_KEY = (() => {
+  const p = songPresets(SONGS[0]);
+  return { rootPc: p.rootPc, intervals: SCALES[p.scale].intervals };
+})();
 import { ScaleRail } from "@/components/studio/scale-rail";
 import { MetronomePanel } from "@/components/studio/metronome-panel";
 
@@ -22,7 +29,7 @@ function SongPage() {
         <StudioNav />
       </header>
       <SongTabView />
-      <Fretboard />
+      <Fretboard spellingKey={SONG_KEY} />
       <div className="grid gap-4 lg:grid-cols-2">
         <ScaleRail />
         <MetronomePanel />

@@ -15,6 +15,7 @@ import {
   solfegeForDegree,
   SCALES,
 } from "@/lib/bass/theory";
+import { NATURAL_PCS, pcOf, spellingFor } from "@/lib/bass/spelling";
 import { pluck } from "@/lib/bass/audio";
 import { useBassStore } from "@/lib/bass/store";
 import { grooveById, hitsAt } from "@/lib/bass/grooves";
@@ -30,21 +31,6 @@ function fretTemplate(frets: number) {
   return `${OPEN_COL} ${NUT_COL} ${widths.map((w) => `minmax(2.6rem, ${w.toFixed(5)}fr)`).join(" ")}`;
 }
 
-const FLAT_NAMES = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"];
-const SHARP_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
-const NATURAL_PCS = new Set([0, 2, 4, 5, 7, 9, 11]);
-// Key signatures spelled with sharps; everything else (flat keys, C major / A minor) uses flats.
-const SHARP_MAJOR = new Set([7, 2, 9, 4, 11]);
-const SHARP_MINOR = new Set([4, 11, 6, 1, 8]);
-
-/** Spell accidentals from the active key (root + scale); default flats. */
-function spellingFor(rootPc: number, intervals: readonly number[]): readonly string[] {
-  const minorish = intervals.includes(3) && !intervals.includes(4);
-  const sharp = minorish ? SHARP_MINOR.has(rootPc) : SHARP_MAJOR.has(rootPc);
-  return sharp ? SHARP_NAMES : FLAT_NAMES;
-}
-
-const pcOf = (midi: number) => ((midi % 12) + 12) % 12;
 
 function invertKeyMap() {
   const out: Record<string, string> = {};
@@ -71,7 +57,14 @@ function fretLabelText(
   return note;
 }
 
-export function Fretboard({ frets = DEFAULT_BOARD_FRETS }: { frets?: number } = {}) {
+export function Fretboard({
+  frets = DEFAULT_BOARD_FRETS,
+  spellingKey,
+}: {
+  frets?: number;
+  /** Spell notes in this key (e.g. the open song's key) instead of the store's root/scale. */
+  spellingKey?: { rootPc: number; intervals: readonly number[] };
+} = {}) {
   const boardFrets = Math.max(1, Math.min(frets, FRET_COUNT));
   const template = fretTemplate(boardFrets);
   const live = useBassStore((s) => s.live);
@@ -100,7 +93,9 @@ export function Fretboard({ frets = DEFAULT_BOARD_FRETS }: { frets?: number } = 
           (a, b) => a - b,
         )
       : intervals;
-  const names = spellingFor(rootPc, intervals);
+  const names = spellingKey
+    ? spellingFor(spellingKey.rootPc, spellingKey.intervals)
+    : spellingFor(rootPc, intervals);
   // String names come from the tuning, not a hard-coded G D A E.
   const stringNames = openMidi.map((m) => names[pcOf(m)]);
   const groove = grooveById(grooveId);
