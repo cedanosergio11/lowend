@@ -5,6 +5,7 @@ import { AmpRack } from "@/components/studio/amp-rack";
 import { ScaleRail } from "@/components/studio/scale-rail";
 import { GrooveDeck } from "@/components/studio/groove-deck";
 import { SongToTabs } from "@/components/studio/song-to-tabs";
+import { LiveInput } from "@/components/studio/live-input";
 import { MetronomePanel } from "@/components/studio/metronome-panel";
 import { Button } from "@/components/ui/button";
 import { StudioNav } from "@/components/studio/studio-nav";
@@ -207,6 +208,8 @@ export function Studio() {
       </section>
 
       <SongToTabs />
+
+      <LiveInput />
 
       <Fretboard />
 

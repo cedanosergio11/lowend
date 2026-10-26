@@ -35,6 +35,11 @@ export function SongTabView() {
   const setTuningId = useBassStore((s) => s.setTuningId);
   const setRootPc = useBassStore((s) => s.setRootPc);
   const setScaleId = useBassStore((s) => s.setScaleId);
+  // Tuning follows the song as soon as it opens (Pista 1 → E♭); presets only set tempo/key.
+  const songTuningId = song?.tuningId;
+  useEffect(() => {
+    if (songTuningId) setTuningId(songTuningId);
+  }, [songTuningId, setTuningId]);
   if (!song) return null;
 
   function applyPresets() {
@@ -44,7 +49,6 @@ export function SongTabView() {
     window.dispatchEvent(new CustomEvent(METRONOME_BPM_EVENT, { detail: p.bpm }));
     setRootPc(p.rootPc);
     setScaleId(p.scale);
-    setTuningId(p.tuningId);
     setApplied(true);
   }
 
