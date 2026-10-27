@@ -1,0 +1,71 @@
+name: Build and push gh-pages preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-gh-pages
+  cancel-in-progress: true
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Build Pages SPA
+        run: npm run build:pages
+        env:
+          GITHUB_PAGES: "1"
+          BASE_PATH: "/lowend/preview/"
+      - name: Stage dist and verify basepath
+        run: |
+          set -euo pipefail
+          test -f dist/client/index.html
+          if ! grep -R -F 'basepath:`/lowend/preview`' dist/client/assets/*.js; then
+            echo "FATAL: missing basepath:/lowend/preview in built JS"
+            grep -R 'basepath:' dist/client/assets/*.js | head -20 || true
+            exit 1
+          fi
+          # Client path smoke: Web Audio / analyzeDecoded should be in the bundle
+          if ! grep -R -E 'AudioContext|analyzeDecoded|decodeAudioData' dist/client/assets/*.js >/dev/null; then
+            echo "FATAL: client analyze path markers missing from bundle"
+            exit 1
+          fi
+          rm -rf /tmp/pages-out
+          cp -a dist/client /tmp/pages-out
+          ls -la /tmp/pages-out /tmp/pages-out/assets
+      - name: Push to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Build may dirty routeTree.gen.ts — discard before switching branches
+          git reset --hard HEAD
+          git clean -fd
+          if ! git fetch origin gh-pages:gh-pages; then
+            echo "FATAL: origin/gh-pages does not exist; refusing to create an orphan branch"
+            exit 1
+          fi
+          git checkout -f gh-pages
+          # Replace only preview/. Leave the live site and every other path untouched.
+          rm -rf preview
+          mkdir preview
+          cp -a /tmp/pages-out/. preview/
+          git add -A -- preview
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "deploy(pages): preview from ${GITHUB_SHA}"
+            git push origin gh-pages
+          fi
